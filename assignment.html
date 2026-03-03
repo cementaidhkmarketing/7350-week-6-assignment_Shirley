@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>7350 CODE ADVENTURE: PIXEL HERO EDITION</title>
+    <!-- Google Fonts for Pixel Aesthetic -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <!-- CDN for Confetti Effects -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --pixel-green: #7cfc00;
+            --pixel-blue: #00a2e8;
+            --pixel-yellow: #fde12d;
+            --pixel-red: #ed1c24;
+            --pixel-locked: #444;
+            --bg-dark: #0c2a43;
+            --inv-bg: #2c3e50; 
+        }
+
+        * { box-sizing: border-box; image-rendering: pixelated; }
+
+        body {
+            margin: 0;
+            font-family: 'Press Start 2P', cursive;
+            background-color: var(--bg-dark);
+            color: white;
+            padding-bottom: 50px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            text-shadow: 4px 4px 0px #000;
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            color: var(--pixel-yellow);
+        }
+
+        .subtitle {
+            font-size: 0.7rem;
+            color: #aaa;
+            letter-spacing: 2px;
+            line-height: 1.8;
+        }
+
+        .dev-tag {
+            display: block;
+            margin-top: 10px;
+            font-size: 0.6rem;
+            color: var(--pixel-green);
+        }
+
+        /* Map Wrapper */
+        .map-wrapper {
+            background: #000;
+            border: 8px solid #333;
+            padding: 5px;
+            margin-bottom: 50px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .game-map {
+            width: 100%;
+            aspect-ratio: 16 / 10;
+            background-image: url('https://img.freepik.com/free-photo/8-bit-graphics-pixels-scene-with-island_23-2151120894.jpg?semt=ais_rp_progressive&w=740&q=80');
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            border: 4px solid #000;
+            z-index: 1;
+        }
+
+        /* Ambient Animations */
+        .cloud {
+            position: absolute;
+            background: #fff;
+            width: 60px;
+            height: 20px;
+            opacity: 0.8;
+            z-index: 4;
+            pointer-events: none;
+            box-shadow: 10px 10px #fff, -10px 5px #fff, 20px 5px #fff;
+        }
+
+        .c1 { top: 12%; animation: move 45s infinite linear; }
+        .c2 { top: 22%; animation: move 65s infinite linear reverse; left: -100px; opacity: 0.5; transform: scale(0.7); }
+        .c3 { top: 8%; animation: move 55s infinite linear; left: 35%; }
+
+        @keyframes move {
+            from { transform: translateX(-200px); }
+            to { transform: translateX(calc(1100px + 100%)); }
+        }
+
+        .bird {
+            position: absolute;
+            width: 15px; height: 15px;
+            z-index: 5;
+            pointer-events: none;
+            animation: fly 30s infinite ease-in-out;
+        }
+
+        .bird::before {
+            content: 'v';
+            font-family: monospace;
+            font-size: 20px;
+            color: #222;
+            display: block;
+            animation: flap 0.6s infinite alternate;
+        }
+
+        @keyframes flap {
+            from { transform: scaleY(0.4); }
+            to { transform: scaleY(1.1); }
+        }
+
+        @keyframes fly {
+            0% { left: -10%; top: 35%; transform: scaleX(1); }
+            45% { left: 110%; top: 15%; transform: scaleX(1); }
+            50% { transform: scaleX(-1); }
+            95% { left: -10%; top: 35%; transform: scaleX(-1); }
+            100% { transform: scaleX(1); }
+        }
+
+        #path-layer {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 6;
+        }
+
+        /* Node Styling */
+        .node {
+            position: absolute;
+            width: 32px; height: 32px;
+            background: var(--pixel-locked);
+            border: 3px solid #222;
+            cursor: not-allowed;
+            z-index: 10;
+            display: flex;
+            align-items: center; justify-content: center;
+            font-size: 10px; color: #666;
+            box-shadow: 0 4px 0 #000;
+            transform: translate(-50%, -50%);
+            transition: 0.3s;
+        }
+
+        .node.unlocked {
+            background: var(--pixel-red);
+            border-color: #fff;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 0 15px var(--pixel-red);
+        }
+
+        .node.done {
+            background: var(--pixel-green);
+            border-color: #fff;
+            color: #000;
+            cursor: pointer;
+        }
+
+        .node-name {
+            position: absolute;
+            top: -25px;
+            font-size: 7px;
+            background: rgba(0,0,0,0.8);
+            padding: 2px 5px;
+            white-space: nowrap;
+            color: white;
+            border: 1px solid #555;
+        }
+
+        .log-display {
+            background: #000;
+            color: var(--pixel-green);
+            font-size: 9px;
+            padding: 20px;
+            text-align: center;
+            border-top: 4px solid #333;
+            line-height: 1.6;
+        }
+
+        /* Battle Interface */
+        .battle-mask {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            z-index: 100;
+            justify-content: center; align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .battle-box {
+            width: 95%; max-width: 650px;
+            background: #2a3a2a;
+            border: 6px solid #fff;
+            padding: 25px;
+            color: white;
+        }
+
+        .monster-area {
+            display: flex; justify-content: center;
+            margin-bottom: 10px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        #m-canvas { width: 120px; height: 120px; image-rendering: pixelated; }
+
+        .ui-box { background: #000; border: 3px solid #fff; padding: 10px; width: 260px; margin-bottom: 15px; }
+        .hp-outer { width: 100%; height: 12px; background: #333; border: 2px solid #fff; margin-top: 5px; }
+        .hp-inner { height: 100%; background: var(--pixel-green); width: 100%; transition: 0.5s; }
+
+        #msg-text {
+            font-size: 10px; min-height: 80px; margin: 10px 0;
+            line-height: 1.6; background: #000; padding: 10px; border: 2px solid #fff;
+            overflow-y: auto;
+        }
+
+        textarea {
+            width: 100%; height: 100px; background: #111; color: var(--pixel-green);
+            border: 3px solid #444; font-family: monospace; padding: 12px; font-size: 16px; margin-bottom: 10px;
+            outline: none; resize: none;
+        }
+
+        .btn {
+            background: #333; border: 3px solid #fff; padding: 12px;
+            font-family: 'Press Start 2P'; font-size: 10px; color: white; cursor: pointer;
+        }
+        .btn-fight { background: #4a1; }
+        .btn-run { background: #a11; }
+
+        /* Inventory Section */
+        .inv-section {
+            background: var(--inv-bg); 
+            border: 8px solid #000;
+            padding: 40px 30px;
+            margin-bottom: 50px;
+        }
+
+        .inv-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .item {
+            background: #fff; border: 4px solid #000;
+            padding: 20px; color: #000;
+            box-shadow: 8px 8px 0px #000;
+        }
+
+        .item-icon {
+            width: 40px; height: 40px;
+            background: #fff; border: 2px solid #000;
+            display: flex; align-items: center; justify-content: center;
+            margin-right: 15px;
+        }
+
+        /* Video Section */
+        .video-section {
+            background: #222; border: 8px solid #000; padding: 30px;
+        }
+
+        .v-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .v-card { border: 4px solid #444; background: #000; position: relative; padding-bottom: 56.25%; height: 0; }
+        .v-card iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>7350 CODE ADVENTURE</h1>
+        <div class="subtitle">
+            Mission: Complete 10 Stage Island Trial
+            <span class="dev-tag">Developed by Shirley Tang</span>
+        </div>
+    </div>
+
+    <div class="map-wrapper">
+        <div class="cloud c1"></div>
+        <div class="cloud c2"></div>
+        <div class="cloud c3"></div>
+        <div class="bird"></div>
+        
+        <div class="game-map" id="world-map">
+            <svg id="path-layer" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+        <div class="log-display">
+            ADVENTURER LOG: <span id="log-info">EXPLORE THE ISLAND AND DEFEAT 10 GLITCH MONSTERS!</span>
+            <div style="color:#888; font-size:7px; margin-top:10px;">
+                Type the correct code to strike down the bugs.<br>
+                Your keyboard is your sword. Good luck!
+            </div>
+        </div>
+    </div>
+
+    <div class="inv-section">
+        <h2 style="text-align:center; margin-bottom:30px;">INVENTORY</h2>
+        <div class="inv-grid" id="inv-list"></div>
+    </div>
+
+    <div class="video-section">
+        <h2 style="text-align:center; font-size:14px; margin-bottom:25px;">DEV ACADEMY</h2>
+        <div class="v-grid">
+            <div class="v-card"><iframe src="https://www.youtube.com/embed/9Hku_7e-JSk"></iframe></div>
+            <div class="v-card"><iframe src="https://www.youtube.com/embed/K5KVEU3aaeQ"></iframe></div>
+            <div class="v-card"><iframe src="https://www.youtube.com/embed/XKHEtdqhLK8"></iframe></div>
+        </div>
+    </div>
+</div>
+
+<div class="battle-mask" id="battle-popup">
+    <div class="battle-box">
+        <div class="monster-area"><canvas id="m-canvas" width="10" height="10"></canvas></div>
+        <div class="ui-box">
+            <div style="display:flex; justify-content:space-between; font-size:9px;">
+                <span id="m-name">GLITCH</span>
+                <span id="m-lv">Lv.1</span>
+            </div>
+            <div class="hp-outer"><div class="hp-inner" id="m-hp"></div></div>
+        </div>
+        <div id="msg-text">Ready?</div>
+        <div id="controls">
+            <p id="task-info" style="font-size: 8px; color: #aaa; margin-bottom: 8px;"></p>
+            <textarea id="code-input" placeholder="Type code here..."></textarea>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;" id="btns-main">
+                <button class="btn btn-fight" onclick="attack()">FIGHT</button>
+                <button class="btn btn-run" onclick="hideBattle()">RUN</button>
+            </div>
+            <button class="btn btn-fight" id="btn-next" style="display:none; width:100%; margin-top:10px;" onclick="goNext()">NEXT STAGE</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const levels = [
+        { id: 1, name: "SHORE", x: 22, y: 64, title: "Output", desc: "Output the word 'Ready' to the console.", ans: "print('Ready')" },
+        { id: 2, name: "FOREST", x: 30, y: 55, title: "Operations", desc: "Calculate the result of 50 multiplied by 2 and print it.", ans: "print(50*2)" },
+        { id: 3, name: "LEDGE", x: 42, y: 53, title: "Storage", desc: "Create a variable named 'hp' and set its value to 10.", ans: "hp=10" },
+        { id: 4, name: "CLIFF", x: 48, y: 44, title: "Concat", desc: "Combine the characters 'A' and 'B' into one string and print it.", ans: "print('A'+'B')" },
+        { id: 5, name: "PEAK", x: 50, y: 35, title: "Arrays", desc: "Define a list called 'nums' containing the integers 1 and 2.", ans: "nums=[1,2]" },
+        { id: 6, name: "CORE", x: 47, y: 57, title: "Handling", desc: "Write the basic structure of a try-except block (one line each).", ans: "try:\nexcept:" },
+        { id: 7, name: "BRIDGE", x: 58, y: 56, title: "Flow", desc: "If variable 'y' is less than 1, output the string 'Low'.", ans: "if y<1:\n    print('Low')" },
+        { id: 8, name: "PLATEAU", x: 67, y: 54, title: "Iteration", desc: "Start a 'for' loop using iterator 'i' to go through variable 'x'.", ans: "for i in x:" },
+        { id: 9, name: "TEMPLE", x: 74, y: 56, title: "Definition", desc: "Define a new function named 'init' that takes no arguments.", ans: "def init():" },
+        { id: 10, name: "PORT", x: 84, y: 66, title: "Equality", desc: "Check if the integer 10 is equal to 10 and print the result.", ans: "print(10==10)" }
+    ];
+
+    const items = [
+        { name: "GitHub", domain: "github.com", desc: "Store your source code.", power: 100, url: "https://github.com" },
+        { name: "MDN", domain: "mozilla.org", desc: "Web dev survival guide.", power: 85, url: "https://developer.mozilla.org" },
+        { name: "StackOverflow", domain: "stackoverflow.com", desc: "The ultimate bug fixer.", power: 100, url: "https://stackoverflow.com" },
+        { name: "FreeCodeCamp", domain: "freecodecamp.org", desc: "Practice makes perfect.", power: 90, url: "https://freecodecamp.org" },
+        { name: "W3Schools", domain: "w3schools.com", desc: "Quick ref guide.", power: 95, url: "https://www.w3schools.com" },
+        { name: "Python Docs", domain: "python.org", desc: "Official documentation.", power: 100, url: "https://docs.python.org" }
+    ];
+
+    let progress = parseInt(localStorage.getItem('game_prog')) || 0;
+    let activeLv = -1;
+
+    function drawMonster(ctx, index) {
+        ctx.clearRect(0, 0, 10, 10);
+        const hue = index * 36;
+        ctx.fillStyle = `hsl(${hue}, 70%, 50%)`;
+        
+        switch(index % 10) {
+            case 0: ctx.fillRect(2, 2, 6, 6); ctx.fillStyle="#000"; ctx.fillRect(3, 3, 1, 1); ctx.fillRect(6, 3, 1, 1); ctx.fillRect(3, 6, 4, 1); break;
+            case 1: ctx.fillRect(3, 1, 4, 8); ctx.fillRect(1, 3, 8, 4); ctx.fillStyle="#fff"; ctx.fillRect(3, 4, 1, 1); ctx.fillRect(6, 4, 1, 1); break;
+            case 2: ctx.fillRect(1, 4, 8, 5); ctx.fillRect(2, 3, 6, 1); ctx.fillRect(3, 2, 4, 1); ctx.fillStyle="#fff"; ctx.fillRect(3, 4, 1, 2); ctx.fillRect(6, 4, 1, 2); break;
+            case 3: ctx.fillRect(2, 1, 6, 8); ctx.clearRect(3, 9, 1, 1); ctx.clearRect(5, 9, 1, 1); ctx.clearRect(7, 9, 1, 1); ctx.fillStyle="#000"; ctx.fillRect(3, 3, 1, 2); ctx.fillRect(6, 3, 1, 2); break;
+            case 4: ctx.fillRect(2, 3, 6, 4); ctx.fillRect(1, 2, 1, 2); ctx.fillRect(8, 2, 1, 2); ctx.fillRect(2, 7, 1, 2); ctx.fillRect(7, 7, 1, 2); ctx.fillStyle="#fff"; ctx.fillRect(3, 4, 1, 1); ctx.fillRect(6, 4, 1, 1); break;
+            case 5: ctx.fillRect(4, 3, 2, 2); ctx.fillRect(1, 2, 3, 1); ctx.fillRect(6, 2, 3, 1); ctx.fillRect(0, 3, 2, 1); ctx.fillRect(8, 3, 2, 1); ctx.fillStyle="#fff"; ctx.fillRect(4, 3, 1, 1); break;
+            case 6: ctx.fillRect(4, 1, 2, 8); ctx.fillRect(3, 2, 4, 2); ctx.fillRect(2, 4, 6, 1); ctx.fillStyle="#000"; ctx.fillRect(4, 2, 1, 1); break;
+            case 7: ctx.fillRect(2, 2, 6, 5); ctx.fillRect(4, 7, 2, 2); ctx.fillRect(1, 1, 1, 2); ctx.fillRect(8, 1, 1, 2); ctx.fillStyle="#fff"; ctx.fillRect(3, 3, 4, 1); break;
+            case 8: ctx.fillStyle=`hsl(${hue}, 80%, 40%)`; for(let i=0;i<10;i++)for(let j=0;j<10;j++)if((i+j)%3===0)ctx.fillRect(i,j,1,1); ctx.fillStyle="#fff"; ctx.fillRect(3,3,4,4); break;
+            case 9: ctx.fillRect(2, 3, 6, 6); ctx.fillStyle="gold"; ctx.fillRect(2, 1, 1, 2); ctx.fillRect(4, 1, 2, 2); ctx.fillRect(7, 1, 1, 2); ctx.fillStyle="#fff"; ctx.fillRect(3, 4, 1, 1); ctx.fillRect(6, 4, 1, 1); break;
+        }
+    }
+
+    function buildMap() {
+        const map = document.getElementById('world-map');
+        const svg = document.getElementById('path-layer');
+        
+        map.querySelectorAll('.node').forEach(n => n.remove());
+        svg.innerHTML = '';
+
+        levels.forEach((lv, i) => {
+            const node = document.createElement('div');
+            node.className = 'node';
+            node.id = `lv-${i}`;
+            node.style.left = lv.x + '%';
+            node.style.top = lv.y + '%';
+            node.innerHTML = `<span class="node-name">${lv.name}</span>${i+1}`;
+            node.onclick = () => { if (i <= progress) showBattle(i); };
+            map.appendChild(node);
+
+            if (i < levels.length - 1) {
+                const next = levels[i+1];
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.id = `path-${i}`;
+                line.setAttribute("x1", lv.x+"%"); line.setAttribute("y1", lv.y+"%");
+                line.setAttribute("x2", next.x+"%"); line.setAttribute("y2", next.y+"%");
+                line.setAttribute("stroke", i < progress ? "var(--pixel-green)" : "#fff");
+                line.setAttribute("stroke-width", "3");
+                line.setAttribute("stroke-dasharray", "4");
+                line.setAttribute("opacity", "0.6");
+                svg.appendChild(line);
+            }
+        });
+        refreshNodes();
+    }
+
+    function refreshNodes() {
+        levels.forEach((_, i) => {
+            const el = document.getElementById(`lv-${i}`);
+            const path = document.getElementById(`path-${i}`);
+            if(!el) return;
+            el.classList.remove('unlocked', 'done');
+            
+            if (i < progress) {
+                el.classList.add('done');
+                el.innerHTML = `<span class="node-name">${levels[i].name}</span>✓`;
+                if(path) path.setAttribute("stroke", "var(--pixel-green)");
+            }
+            else if (i === progress) {
+                el.classList.add('unlocked');
+            }
+        });
+    }
+
+    function showBattle(idx) {
+        activeLv = idx;
+        const lv = levels[idx];
+        document.getElementById('battle-popup').style.display = 'flex';
+        document.getElementById('m-name').innerText = lv.title.toUpperCase();
+        document.getElementById('m-lv').innerText = `Lv.${idx+1}`;
+        document.getElementById('task-info').innerText = "TASK: " + lv.desc;
+        document.getElementById('msg-text').innerText = "A glitch appears!";
+        document.getElementById('m-hp').style.width = "100%";
+        document.getElementById('code-input').value = "";
+        document.getElementById('btn-next').style.display = 'none';
+        document.getElementById('btns-main').style.display = 'grid';
+        
+        const ctx = document.getElementById('m-canvas').getContext('2d');
+        drawMonster(ctx, idx);
+    }
+
+    function hideBattle() { document.getElementById('battle-popup').style.display = 'none'; }
+
+    function attack() {
+        const input = document.getElementById('code-input').value.trim().replace(/\s/g, '');
+        const actualAns = levels[activeLv].ans;
+        const target = actualAns.trim().replace(/\s/g, '');
+        
+        if (input === target) {
+            document.getElementById('m-hp').style.width = "0%";
+            document.getElementById('msg-text').innerHTML = "<span style='color:var(--pixel-green)'>CRITICAL HIT!</span> Bug fixed!";
+            
+            if(window.confetti) {
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+            }
+            
+            if (activeLv === progress) {
+                progress++;
+                localStorage.setItem('game_prog', progress);
+            }
+            refreshNodes();
+            
+            if (progress < levels.length) {
+                document.getElementById('btn-next').style.display = 'block';
+                document.getElementById('btns-main').style.display = 'none';
+            } else {
+                document.getElementById('msg-text').innerText = "ISLAND CONQUERED!";
+                setTimeout(hideBattle, 2000);
+            }
+        } else {
+            document.getElementById('msg-text').innerHTML = `
+                <span style='color:var(--pixel-red)'>MISSED!</span><br>
+                <span style='color:#aaa; font-size:7px;'>HINT: The correct code is:<br>
+                <code style='color:var(--pixel-yellow)'>${actualAns.replace(/\n/g, ' ')}</code></span>
+            `;
+        }
+    }
+
+    function goNext() { hideBattle(); showBattle(progress); }
+
+    function buildInv() {
+        const grid = document.getElementById('inv-list');
+        grid.innerHTML = '';
+        items.forEach(item => {
+            const icon = `https://www.google.com/s2/favicons?domain=${item.domain}&sz=64`;
+            grid.innerHTML += `
+                <div class="item">
+                    <div style="display:flex; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:10px;">
+                        <div class="item-icon"><img src="${icon}" width="24" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1243/1243924.png'"></div>
+                        <div>
+                            <div style="font-size:10px; font-weight:bold;">${item.name}</div>
+                            <div style="font-size:7px; color:#666;">Level: MAX</div>
+                        </div>
+                    </div>
+                    <div style="font-size:8px; color:#666; margin-bottom:4px; display:flex; justify-content:space-between;">
+                        <span>POWER</span><span>${item.power}%</span>
+                    </div>
+                    <div style="width:100%; height:10px; background:#ddd; border:2px solid #000; margin-bottom:10px;">
+                        <div style="height:100%; background:var(--pixel-green); width:${item.power}%"></div>
+                    </div>
+                    <div style="font-size:9px; color:#333; height:40px;">${item.desc}</div>
+                    <a href="${item.url}" target="_blank" style="display:block; text-align:center; background:#000; color:#fff; text-decoration:none; padding:10px; font-size:9px; border:2px solid #000;">USE</a>
+                </div>
+            `;
+        });
+    }
+    
+    window.onload = () => { buildMap(); buildInv(); };
+</script>
+</body>
+</html>
